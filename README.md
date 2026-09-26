@@ -1,82 +1,148 @@
-# AI Capsule — Cloud-Deployed AI Prompt Manager
+# AI Capsule — Assessment 3
 
-A React and Express prompt library with GitHub OAuth, an Express-issued JWT cookie, and SQLite storage. Each capsule belongs to the GitHub account ID verified during OAuth. The browser never sends an owner ID that the API uses.
+Student: Alexander Beaumont  
+Public URL: https://ai-capsule-assessment.onrender.com  
+Hosting: Render Free Node Web Service  
+Repository: https://github.com/Alexander-Beaumont/ai-capsule-assessment
 
-## Deployment status and evidence
+AI Capsule is a private prompt library. Users sign in with GitHub, then create, read, update and delete their own prompt records. React provides the interface, Express provides the API, and SQLite stores the records. Express serves the React production build and the API on the same origin.
 
-**Public URL:** To be added after deployment: `https://YOUR-SERVICE.onrender.com`  
-**Platform:** Render Web Service (planned).  
-**Live OAuth and deployed cURL results:** Pending GitHub OAuth App registration and deployment. Do not claim this part is complete before checking it at the public URL.  
-**Video:** Record and submit a 3–5 minute MP4 with working audio from your own signed-in browser. This source ZIP and the MP4 must both be uploaded to the LMS.
+## Verification status — complete the remaining checks before submission
 
-## Local setup
+On 26 September 2026, Render logs showed a successful build and live deployment. Browser screenshots showed the deployed dashboard signed in as Alexander-Beaumont and a saved “Fix Render build” capsule displaying version v2. These screenshots show the resulting state; the video must demonstrate the full operation sequence.
 
-Requires Node.js 22+ and npm. In the project directory:
+Direct HTTP checks performed by ChatGPT on 26 September 2026 against the public deployment returned:
+
+| Check | Observed result |
+| --- | --- |
+| GET /api/health | HTTP 200; {"status":"ok"} |
+| GET /api/capsules without a cookie | HTTP 401; {"error":"Unauthorized"} |
+| GET /api/capsules with token=fake-token-123 | HTTP 401; {"error":"Unauthorized"} |
+
+Local npm test output supplied by the student showed all four test groups passing. These tests exercise CRUD, owner isolation, token rejection, validation and a mocked OAuth exchange. Mocked tests do not authenticate with real GitHub accounts.
+
+Remaining before submission: personally repeat and record the public HTTP checks; demonstrate create, refresh/read, edit and delete in the deployed UI; confirm the exposed development-session secrets have been replaced; record and review a 3–5 minute MP4 with audio; package the current source. Remove this pending checklist only after completing it, and describe what was actually verified. No final video has yet been reviewed.
+
+## Requirements and installation
+
+Use Node.js 24 or newer and npm. The student used Node 25.9.0 locally; the supplied Render logs reported Node 26.10.0. SQLite uses Node's built-in `node:sqlite` module. No separate database server or `better-sqlite3` installation is needed.
+
+From the project directory:
 
 ```bash
-npm ci
+npm ci --include=dev
 cp .env.example .env
-# Edit .env and provide the GitHub OAuth App credentials and a long random JWT_SECRET.
+```
+
+Set local environment values in `.env`. Use a GitHub OAuth App configured with Homepage URL `http://localhost:4000` and Redirect URI `http://localhost:4000/auth/github/callback`. Set local `APP_URL=http://localhost:4000`; do not use `NODE_ENV=production` for this HTTP local setup. A separate local OAuth App avoids changing the deployed OAuth App.
+
+Generate a fresh local JWT secret, place it in `.env`, and keep it private:
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+npm test
 npm run build
 npm start
 ```
 
-Visit `http://localhost:4000`; the local callback URL is `http://localhost:4000/auth/github/callback`. Register that URL under GitHub → Settings → Developer settings → OAuth Apps → New OAuth App. Set Homepage URL to `http://localhost:4000`. For development with separate Vite and Express processes, run `npm run dev` and visit `http://localhost:5173`; the Vite proxy forwards `/api` and `/login` to Express. Building and using port 4000 is recommended for testing the exact deployment architecture. Generate a secret with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`. Never commit `.env`.
+Open http://localhost:4000. This is the recommended local workflow because it serves frontend and backend together. SQLite creates `data/capsules.db` and its table/index automatically when the server starts. Stop the server with Ctrl+C.
 
-`npm test` runs backend tests covering authentication rejection, owner isolation, CRUD, validation, and OAuth state initiation. Test SQLite data is kept in memory and does not affect your real database. `/api/health` should return `{"status":"ok"}`.
+## Render configuration
 
-## Cloud deployment — Render
+| Setting | Value |
+| --- | --- |
+| Service | Node Web Service |
+| Branch | main |
+| Root directory | Repository root, where package.json is located |
+| Build command | npm ci --include=dev && npm run build |
+| Start command | npm run start |
+| Recommended health check path | /api/health |
+| APP_URL | https://ai-capsule-assessment.onrender.com |
+| GitHub OAuth Redirect URI | https://ai-capsule-assessment.onrender.com/auth/github/callback |
 
-1. Put this source in a private or public Git repository. Ensure `.env`, `data/*.db`, `node_modules`, and `dist` are absent. Create a **GitHub OAuth App** with Homepage URL `https://YOUR-SERVICE.onrender.com` and Authorization callback URL `https://YOUR-SERVICE.onrender.com/auth/github/callback`. A separate OAuth App for local development avoids repeatedly changing callback settings.
-2. Create a Render **Web Service** from the repository. Set runtime to **Node**, build command `npm ci && npm run build`, start command `npm start`. Render assigns `PORT`; Express listens on it. Set health check path `/api/health` where supported. Do not deploy as a static site: Express must run alongside the built React app.
-3. Set Render environment-variable **names** `NODE_ENV=production`, `APP_URL=https://YOUR-SERVICE.onrender.com`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `JWT_SECRET`, and optionally `DATABASE_PATH`. Put secret **values** only in Render's environment settings. For Render's ephemeral filesystem, the default `./data/capsules.db` works but may be erased by a redeploy or restart. A Render persistent disk with `DATABASE_PATH=/var/data/capsules.db` is possible on a qualifying plan; check current pricing before selecting it.
-4. Deploy, open the public root and `/api/health`, perform OAuth and full CRUD through `/dashboard`, and run the two cURL checks below. Keep the service available through marking. Update this README with the actual URL, platform, response codes and any real deployment issue you solved before submission.
+Render supplies the listening port. Express binds to `0.0.0.0` and uses `PORT`. Keep the service accessible during marking.
 
-Environment variables: `GITHUB_CLIENT_ID` (OAuth application identifier), `GITHUB_CLIENT_SECRET` (server-only OAuth credential), `JWT_SECRET` (server signing key, at least 32 characters in production), `APP_URL` (exact public origin, HTTPS in production), `DATABASE_PATH` (SQLite file path), `PORT` (hosting platform's HTTP port), `NODE_ENV` (`production` in cloud). Only names belong in screenshots.
+| Environment variable | Purpose |
+| --- | --- |
+| GITHUB_CLIENT_ID | Identifies the registered OAuth App |
+| GITHUB_CLIENT_SECRET | Backend-only GitHub OAuth credential |
+| JWT_SECRET | Backend signing key; at least 32 characters in production |
+| APP_URL | Application origin without a trailing slash; HTTPS in production |
+| NODE_ENV | production on Render |
+| PORT | HTTP port assigned by Render; local default 4000 |
+| DATABASE_PATH | Optional SQLite path; default ./data/capsules.db |
 
-## Routes and architecture
+Real secret values belong only in local `.env` or Render environment settings. `.env` is excluded from Git. Do not place credentials, real JWTs or secret values in this README, screenshots or the video.
 
-| Route | Access | Function |
-| --- | --- | --- |
-| `/` | Public | React introduction |
-| `/login` | Public | Begins GitHub OAuth |
-| `/dashboard` | JWT required | Serves React dashboard; React also checks `/api/me` |
-| `/api/health` | Public | `{"status":"ok"}` |
-| `GET /api/capsules` | JWT required | List own capsules |
-| `POST /api/capsules` | JWT required | Create a capsule |
-| `PUT /api/capsules/:id` | JWT required | Update own capsule |
-| `DELETE /api/capsules/:id` | JWT required | Delete own capsule |
+## Pages and API
 
-React fetches same-origin `/api` URLs. The browser automatically sends the HttpOnly `token` cookie; React cannot read its contents. `/login` creates a random OAuth `state` and PKCE challenge. The callback checks `state`, exchanges the temporary code on the backend, fetches `/user` from GitHub, and signs an 8-hour application JWT whose subject is `github:<numeric GitHub ID>`. The JWT has a fixed issuer, audience and HS256 algorithm. Every CRUD route verifies it before queries. INSERT assigns `user_id` from the verified JWT, and SELECT, UPDATE and DELETE include `WHERE user_id = ?` in parameterised SQL. Invalid and missing tokens return 401. Updates and deletes to another account's ID return 404. The short-lived OAuth state and verifier cookies and session cookie are HttpOnly and SameSite=Lax. Cookies gain `Secure` when `APP_URL` is HTTPS, as required for the deployed app. Mutations reject foreign browser origins.
+| Route | Access and function |
+| --- | --- |
+| / | Public introduction |
+| /login | Public route that begins GitHub OAuth |
+| /dashboard | JWT-protected dashboard |
+| /api/health | Public; returns {"status":"ok"} |
+| GET /api/capsules | JWT required; returns own records |
+| POST /api/capsules | JWT required; creates own record |
+| PUT /api/capsules/:id | JWT required; updates own record |
+| DELETE /api/capsules/:id | JWT required; deletes own record |
+| /auth/github/start | Creates OAuth state and PKCE challenge; redirects to GitHub |
+| /auth/github/callback | Checks state, exchanges code, reads GitHub identity and creates app JWT |
+| GET /api/me | JWT required; returns login name |
+| POST /logout | Clears the application session cookie |
 
-SQLite initialises `capsules` and the owner index automatically at startup. Records contain project, title, version, prompt, response summary, category, usefulness, reviewed, improved, screenshot URL, notes and timestamp. The production database's durability depends on the hosting filesystem; Render's default filesystem is ephemeral. There is no screenshot file upload: evidence is an optional HTTPS URL.
+React makes same-origin fetch requests and sends JSON for creation and updates. Express validates values and uses parameterised SQL. React never connects directly to SQLite.
 
-## Required deployed checks
+## Authentication and record ownership
 
-Replace the host with the real deployed URL and record the HTTP status actually obtained:
+GitHub authenticates the user. Express exchanges the temporary OAuth code on the server, uses the provider access token to read the GitHub profile, and signs a separate application JWT. The application JWT is signed with HS256, expires after eight hours, and contains issuer, audience and subject claims. The subject is `github:<GitHub numeric ID>`.
+
+The browser stores it in a cookie named `token`, with HttpOnly, SameSite=Lax and, on the deployed HTTPS app, Secure. React cannot read the HttpOnly cookie. There is no JWT in localStorage. The GitHub provider token is not the application JWT.
+
+Shared authentication middleware calls jwt.verify before any capsule route. It validates the signature, expiration, issuer, audience and expected identity format. Missing or invalid JWTs receive 401. INSERT assigns ownership from the verified JWT. SELECT, UPDATE and DELETE constrain queries by that same identity. A browser-supplied user_id is not used. An authenticated attempt to edit or delete another owner's record receives 404.
+
+Local tests cover two simulated identities: the second cannot read, update or delete the first identity's record. They also check that supplying a different user_id during creation cannot assign the record to that other identity. This is automated API evidence; it is not a claim that two real GitHub accounts were tested online.
+
+## Data and storage decision
+
+Each capsule stores id, user_id, project_name, prompt_title, prompt_version, prompt_text, response_summary, category, usefulness, reviewed, improved, screenshot_url, notes and created_at. An owner index supports account-scoped reads. Reviewed and improved are stored as 0 or 1, and created_at is generated by SQLite.
+
+SQLite is sufficient for this small relational CRUD application and meets the assignment minimum. It avoids operating a separate database service. Compared with PostgreSQL, it is less suitable for multiple application instances and concurrent write-heavy workloads. PostgreSQL could keep data separate from the application filesystem, but would add database provisioning and connection configuration.
+
+Limitation: Render Free uses an ephemeral filesystem. Saved SQLite records may disappear after a service restart or redeployment. A browser refresh alone does not restart the server. Screenshot evidence is an optional HTTPS URL; this app does not upload or host screenshot files.
+
+## Required cURL evidence
+
+Run these from a terminal and show them in the demonstration:
 
 ```bash
-curl -i https://YOUR-SERVICE.onrender.com/api/capsules
-# Observed after deployment: [fill in]; expected HTTP 401 Unauthorized
-curl -i -H 'Cookie: token=fake-token-123' https://YOUR-SERVICE.onrender.com/api/capsules
-# Observed after deployment: [fill in]; expected HTTP 401 Unauthorized
+curl -i https://ai-capsule-assessment.onrender.com/api/capsules
+curl -i -H 'Cookie: token=fake-token-123' https://ai-capsule-assessment.onrender.com/api/capsules
 ```
 
-Locally `npm test` exercises the same API rejection and ownership rules with an in-memory database, but actual deployed results must be collected independently. Verify both authenticated accounts see only their own records if two GitHub accounts are available. Never print a real JWT.
+Both were independently observed to return HTTP 401 with `{"error":"Unauthorized"}` on 26 September 2026. Repeat them personally before recording; a browser login is not shared with these curl commands. Do not extract or display a real JWT.
 
-## AI collaboration statement — revise to reflect your actual work
+## AI collaboration and personal work
 
-AI tool: ChatGPT assisted with the first implementation, test cases, UI design and this deployment guide. A security issue identified and corrected during implementation was that a permitted localhost Origin on the deployed server could allow a foreign-origin mutation; the origin check now allows the Vite localhost origin only in local mode. Authentication, ownership and validation were checked through local automated tests; real GitHub OAuth and deployed API behavior still need personal verification. The implementation decision is to serve the React build from Express on the same origin, avoiding cross-origin cookie configuration. **Before submitting**, add what you personally configured, tested, understood and changed; replace the pending verification statements with truthful findings. Limitation: on Render's default filesystem, SQLite data can disappear after redeploy or restart.
+ChatGPT helped generate the initial source, React interface, tests and documentation, and assisted with debugging installation and deployment. I configured the Git repository, GitHub OAuth App and Render service, entered environment settings, ran the local tests and build, and used the deployed interface. I remain responsible for understanding and explaining the submitted implementation.
 
-## Video checklist
+Two problems arose in the AI-assisted setup. First, better-sqlite3 could not install on my Fedora system: its downloaded binary needed a newer GLIBC and the fallback compilation failed on spaces and parentheses in the path. I applied the change to Node's built-in SQLite module and updated the dependency files. Installation, tests and build then passed without moving my project or changing my Node version.
 
-Show the deployed HTTPS address and `/api/health`, both no-cookie and fake-cookie cURL responses (401), GitHub sign-in, dashboard, creating then reading a capsule, editing it and deleting it, Render runtime/build/start settings and environment-variable **names only**, and briefly explain SQLite persistence and one real deployment issue. Do not show secret values or a real JWT. Watch the uploaded MP4 and check its audio before submitting.
+Second, setting NODE_ENV=production caused npm ci to omit Vite, producing “vite: not found”. I changed the Render build command to npm ci --include=dev && npm run build. The next deployment succeeded.
+
+An implementation decision I can explain is serving the React build and Express API from one origin. The browser can send the application cookie to the API without configuring cross-origin access. The database limitation and verification status are described above. Add any further personal verification truthfully before submission.
+
+## Submission
+
+Submit a source ZIP and a 3–5 minute MP4 with working audio directly to the LMS. Include package.json, package-lock.json, .env.example, source and this README. Exclude node_modules, dist, .git, real .env files and local database files. Use the final working source from the repository, including the SQLite change, rather than the earlier downloaded ZIP.
+
+The video must show the public URL, health JSON, both 401 cURL checks, GitHub OAuth login, complete CRUD, cloud runtime/build/start settings, environment-variable names with values concealed, SQLite's storage limitation, and one problem solved. Watch the exported and uploaded recording before submitting.
 
 ## References
 
-- [Assignment 3 PDF](https://lms.latrobe.edu.au/pluginfile.php/13215480/mod_page/content/19/AI_Capsule_Assignment_3_Revised.pdf)
-- [jsonwebtoken documentation](https://www.npmjs.com/package/jsonwebtoken)
-- [Course GitHub OAuth lab](https://github.com/CSE3CWA-5006/CSE3CWA-5006-Week-05)
-- [GitHub OAuth web application flow](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps)
-- [Course Render deployment lab](https://github.com/CSE3CWA-5006/CSE3CWA-5006-Week-01)
-- [Render Node/Express deployment](https://render.com/docs/deploy-node-express-app)
+- jsonwebtoken: https://www.npmjs.com/package/jsonwebtoken
+- Course OAuth lab: https://github.com/CSE3CWA-5006/CSE3CWA-5006-Week-05
+- GitHub OAuth flow: https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps
+- Course deployment lab: https://github.com/CSE3CWA-5006/CSE3CWA-5006-Week-01
+- Render Express deployment: https://render.com/docs/deploy-node-express-app
+- Node SQLite: https://nodejs.org/api/sqlite.html
