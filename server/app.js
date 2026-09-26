@@ -46,7 +46,11 @@ export function createApp({db = openDatabase(), env = process.env, githubFetch =
   function requireAuth(req,res,next) {
     try {
       if (!secret || !req.cookies.token) throw Error('Unauthenticated');
-      const payload = jwt.verify(req.cookies.token, secret, tokenOptions);
+      const payload = jwt.verify(req.cookies.token, secret, {
+      	algorithms: ['HS256'],
+  	issuer: tokenOptions.issuer,
+  	audience: tokenOptions.audience
+  	});
       if (typeof payload.sub !== 'string' || !/^github:\d+$/.test(payload.sub)) throw Error('Invalid identity');
       req.user = {id:payload.sub, login:payload.login}; next();
     } catch { res.status(401).json({error:'Unauthorized'}); }
